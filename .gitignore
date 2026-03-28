@@ -1,0 +1,20 @@
+# Rust build output — never commit this, it's huge
+/target
+
+# Cargo lock is fine to commit for binaries
+# Cargo.lock
+
+# Veil's own runtime data
+.veil/
+
+# VS Code settings
+.vscode/
+
+# Windows junk
+Thumbs.db
+Desktop.ini
+$RECYCLE.BIN/
+
+# Environment files
+.env
+*.env
