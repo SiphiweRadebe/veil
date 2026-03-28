@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="400" height="120" viewBox="0 0 400 120">
+  <ellipse cx="160" cy="60" rx="140" ry="36" fill="none" stroke="#7F77DD" stroke-width="0.8" opacity="0.5"/>
+  <ellipse cx="160" cy="60" rx="100" ry="26" fill="none" stroke="#7F77DD" stroke-width="0.8" opacity="0.4"/>
+  <ellipse cx="160" cy="60" rx="60" ry="16" fill="none" stroke="#7F77DD" stroke-width="0.8" opacity="0.3"/>
+  <circle cx="160" cy="60" r="6" fill="#534AB7"/>
+  <circle cx="160" cy="60" r="3" fill="#AFA9EC"/>
+  <text x="186" y="74" font-family="monospace" font-size="40" font-weight="500" fill="#534AB7" letter-spacing="-1">veil</text>
+</svg>
