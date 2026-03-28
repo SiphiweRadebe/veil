@@ -1,0 +1,53 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - 'v*'
+
+jobs:
+  build:
+    name: Build — ${{ matrix.os }}
+    runs-on: ${{ matrix.os }}
+
+    strategy:
+      matrix:
+        include:
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            binary: veil.exe
+            asset: veil-windows.exe
+
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            binary: veil
+            asset: veil-linux
+
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            binary: veil
+            asset: veil-macos
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install Rust
+        uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - name: Build
+        run: cargo build --release --target ${{ matrix.target }}
+
+      - name: Rename binary
+        shell: bash
+        run: |
+          cp target/${{ matrix.target }}/release/${{ matrix.binary }} ${{ matrix.asset }}
+
+      - name: Upload to release
+        uses: softprops/action-gh-release@v2
+        with:
+          files: ${{ matrix.asset }}
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
