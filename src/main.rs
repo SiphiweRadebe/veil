@@ -40,6 +40,11 @@ enum Commands {
         exit_code: i32,
         directory: String,
     },
+    #[command(hide = true)]
+    Snapshot {
+        command: String,
+        directory: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -73,6 +78,9 @@ fn main() -> Result<()> {
         }
         Commands::Record { command, exit_code, directory } => {
             engines::memoir::record(&command, exit_code, &directory)?;
+        }
+        Commands::Snapshot { command, directory } => {
+            engines::drift::snapshot(&command, &directory)?;
         }
     }
 

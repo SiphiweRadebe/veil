@@ -2,25 +2,29 @@
 
 $global:__veil_last_command = ""
 
-# Intercept every command via the prompt function
 $global:__veil_original_prompt = $function:prompt
 
 function prompt {
     $exit_code = $LASTEXITCODE
 
-    # Record the last command into memoir
     if ($global:__veil_last_command -ne "") {
         $dir = (Get-Location).Path
+        # Record into memoir
         & "C:\Users\ra\.veil\veil.exe" record "$global:__veil_last_command" "$exit_code" "$dir" 2>$null
         $global:__veil_last_command = ""
     }
 
-    # Capture the next command from history
+    # Capture next command from history
     $last = (Get-History -Count 1 -ErrorAction SilentlyContinue)
     if ($last) {
         $global:__veil_last_command = $last.CommandLine
+
+        # Take a snapshot BEFORE the next command runs
+        $dir = (Get-Location).Path
+        Start-Job -ScriptBlock {
+            & "C:\Users\ra\.veil\veil.exe" snapshot $using:__veil_last_command $using:dir 2>$null
+        } | Out-Null
     }
 
-    # Run the original prompt
     & $global:__veil_original_prompt
 }
