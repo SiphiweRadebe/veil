@@ -1,8 +1,14 @@
 [package]
 name = "veil"
-version = "0.1.0"
+version = "0.1.1"
 edition = "2021"
-description = "A thin, intelligent layer over your terminal"
+description = "A thin, intelligent layer over your terminal. Undo anything, preview everything, remember it all."
+license = "MIT"
+repository = "https://github.com/SiphiweRadebe/veil"
+homepage = "https://github.com/SiphiweRadebe/veil"
+readme = "README.md"
+keywords = ["terminal", "cli", "shell", "productivity", "undo"]
+categories = ["command-line-utilities"]
 
 [[bin]]
 name = "veil"
