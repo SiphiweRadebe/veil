@@ -1,5 +1,5 @@
 [package]
-name = "veil"
+name = "veil-shell"
 version = "0.1.1"
 edition = "2021"
 description = "A thin, intelligent layer over your terminal. Undo anything, preview everything, remember it all."
