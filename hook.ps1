@@ -28,3 +28,18 @@ function prompt {
 
     & $global:__veil_original_prompt
 }
+
+# veil go — jump to a bookmarked directory
+function veil-go {
+    param([string]$name)
+    $result = & "C:\Users\ra\.veil\veil.exe" go $name 2>&1
+    if ($result -match "^VEIL_CD:(.+)$") {
+        $path = $Matches[1]
+        Set-Location $path
+        Write-Host "  $("→".ToString()) $path" -ForegroundColor DarkGray
+    } else {
+        Write-Host $result
+    }
+}
+
+Set-Alias -Name vg -Value veil-go

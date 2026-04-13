@@ -7,7 +7,7 @@ use colored::*;
 #[derive(Parser)]
 #[command(name = "veil")]
 #[command(about = "A thin, intelligent layer over your terminal")]
-#[command(version = "0.1.0")]
+#[command(version = "0.1.1")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -34,6 +34,16 @@ enum Commands {
     Back {
         minutes: u64,
     },
+    /// Manage directory bookmarks
+    Bookmark {
+        #[command(subcommand)]
+        action: BookmarkCommands,
+    },
+    /// Jump to a bookmarked directory
+    Go {
+        /// Name of the bookmark
+        name: String,
+    },
     #[command(hide = true)]
     Record {
         command: String,
@@ -45,6 +55,22 @@ enum Commands {
         command: String,
         directory: String,
     },
+}
+
+#[derive(Subcommand)]
+enum BookmarkCommands {
+    /// Save current directory as a bookmark
+    Add {
+        /// Name for this bookmark
+        name: String,
+    },
+    /// Remove a bookmark
+    Remove {
+        /// Name of the bookmark to remove
+        name: String,
+    },
+    /// List all bookmarks
+    List,
 }
 
 fn main() -> Result<()> {
@@ -75,6 +101,27 @@ fn main() -> Result<()> {
         Commands::Back { minutes } => {
             println!("{} {} {}m", "veil".purple().bold(), "back".white(), minutes);
             engines::drift::go_back(minutes)?;
+        }
+        Commands::Bookmark { action } => {
+            match action {
+                BookmarkCommands::Add { name } => {
+                    let dir = std::env::current_dir()?
+                        .to_string_lossy()
+                        .to_string();
+                    engines::bookmarks::add(&name, &dir)?;
+                }
+                BookmarkCommands::Remove { name } => {
+                    engines::bookmarks::remove(&name)?;
+                }
+                BookmarkCommands::List => {
+                    engines::bookmarks::list()?;
+                }
+            }
+        }
+        Commands::Go { name } => {
+            let path = engines::bookmarks::get(&name)?;
+            // Print the path so the PowerShell hook can cd to it
+            println!("VEIL_CD:{}", path);
         }
         Commands::Record { command, exit_code, directory } => {
             engines::memoir::record(&command, exit_code, &directory)?;
