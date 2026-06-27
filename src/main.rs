@@ -121,6 +121,16 @@ enum Commands {
         #[command(subcommand)]
         action: ScheduleCommands,
     },
+    /// Team collaboration and shared configs
+    Team {
+        #[command(subcommand)]
+        action: TeamCommands,
+    },
+    /// Remote host execution and management
+    Remote {
+        #[command(subcommand)]
+        action: RemoteCommands,
+    },
     /// Audit dependencies and environment
     Audit,
     /// Manage session recording and replay
@@ -247,6 +257,77 @@ enum ScheduleCommands {
         name: String,
     },
     /// Remove scheduled task
+    Remove {
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum TeamCommands {
+    /// Setup team configuration
+    Setup {
+        name: String,
+        remote_type: String,
+        url: String,
+    },
+    /// List team configurations
+    List,
+    /// Share a bookmark with team
+    Share {
+        #[command(subcommand)]
+        action: TeamShareCommands,
+    },
+    /// Pull updates from team
+    Pull,
+}
+
+#[derive(Subcommand)]
+enum TeamShareCommands {
+    /// Share a bookmark
+    Bookmark {
+        name: String,
+        #[arg(default_value = "")]
+        description: String,
+    },
+    /// Share a workflow
+    Workflow {
+        name: String,
+        #[arg(default_value = "")]
+        description: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum RemoteCommands {
+    /// Add a remote host
+    Add {
+        name: String,
+        host: String,
+        user: String,
+        #[arg(long)]
+        key: Option<String>,
+        #[arg(long)]
+        tags: Option<String>,
+    },
+    /// List all remote hosts
+    List,
+    /// Execute command on remote host
+    Ssh {
+        host: String,
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// Run command on multiple hosts
+    Broadcast {
+        pattern: String,
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// Share session replay
+    Share {
+        session_id: String,
+    },
+    /// Remove remote host
     Remove {
         name: String,
     },
@@ -427,6 +508,54 @@ fn main() -> Result<()> {
                 }
                 ScheduleCommands::Remove { name } => {
                     engines::schedule::schedule_remove(&name)?;
+                }
+            }
+        }
+        Commands::Team { action } => {
+            match action {
+                TeamCommands::Setup { name, remote_type, url } => {
+                    engines::team::setup_team(&name, &remote_type, &url)?;
+                }
+                TeamCommands::List => {
+                    engines::team::team_list()?;
+                }
+                TeamCommands::Share { action } => {
+                    match action {
+                        TeamShareCommands::Bookmark { name, description } => {
+                            engines::team::share_bookmark(&name, &description)?;
+                        }
+                        TeamShareCommands::Workflow { name, description } => {
+                            engines::team::share_workflow(&name, &description)?;
+                        }
+                    }
+                }
+                TeamCommands::Pull => {
+                    engines::team::team_pull()?;
+                }
+            }
+        }
+        Commands::Remote { action } => {
+            match action {
+                RemoteCommands::Add { name, host, user, key, tags } => {
+                    engines::remote::add_host(&name, &host, &user, key.as_deref(), tags.as_deref())?;
+                }
+                RemoteCommands::List => {
+                    engines::remote::host_list()?;
+                }
+                RemoteCommands::Ssh { host, command } => {
+                    let cmd_str = command.join(" ");
+                    println!("{} {} ssh {}", "veil".purple().bold(), "remote".white(), host.cyan());
+                    engines::remote::ssh(&host, &cmd_str)?;
+                }
+                RemoteCommands::Broadcast { pattern, command } => {
+                    let cmd_str = command.join(" ");
+                    engines::remote::broadcast(&pattern, &cmd_str)?;
+                }
+                RemoteCommands::Share { session_id } => {
+                    engines::remote::replay_share(&session_id)?;
+                }
+                RemoteCommands::Remove { name } => {
+                    engines::remote::host_remove(&name)?;
                 }
             }
         }
