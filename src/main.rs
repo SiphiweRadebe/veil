@@ -45,6 +45,57 @@ enum Commands {
         /// Name of the bookmark
         name: String,
     },
+    /// Rewind terminal to a previous state
+    Rewind {
+        /// Minutes to go back
+        #[arg(default_value = "5")]
+        minutes: u64,
+    },
+    /// Show timeline of snapshots
+    Timeline {
+        /// How many to show
+        #[arg(default_value = "10")]
+        limit: usize,
+    },
+    /// Replay a snapshot from a specific time
+    Play {
+        /// Timestamp or offset (e.g., "5m")
+        time: String,
+    },
+    /// Run command in isolated sandbox
+    Sandbox {
+        #[arg(trailing_var_arg = true)]
+        cmd: Vec<String>,
+    },
+    /// Predict command side effects before running
+    Whatif {
+        #[arg(trailing_var_arg = true)]
+        cmd: Vec<String>,
+    },
+    /// Find similar commands from history
+    Related {
+        query: String,
+    },
+    /// Manage recurring workflows
+    Workflow {
+        #[command(subcommand)]
+        action: WorkflowCommands,
+    },
+    /// Suggest next command based on history
+    Next,
+    /// Analyze project health and dependencies
+    Analyze,
+    /// Show dependency graph
+    Deps {
+        /// Output format: visual or json
+        #[arg(long, default_value = "visual")]
+        format: String,
+    },
+    /// Analyze impact of file changes
+    Impact {
+        /// File to analyze
+        file: String,
+    },
     /// Audit dependencies and environment
     Audit,
     /// Manage session recording and replay
@@ -120,6 +171,16 @@ enum AliasCommands {
     List,
     /// Suggest aliases based on command history
     Suggest,
+}
+
+#[derive(Subcommand)]
+enum WorkflowCommands {
+    /// List all saved workflows
+    List,
+    /// Save current command sequence as workflow
+    Save {
+        name: String,
+    },
 }
 
 fn main() -> Result<()> {
@@ -206,6 +267,54 @@ fn main() -> Result<()> {
                     engines::sage::suggest()?;
                 }
             }
+        }
+        Commands::Rewind { minutes } => {
+            engines::temporal::rewind(minutes)?;
+        }
+        Commands::Timeline { limit } => {
+            engines::temporal::timeline(limit)?;
+        }
+        Commands::Play { time } => {
+            engines::temporal::play(&time)?;
+        }
+        Commands::Sandbox { cmd } => {
+            let full_cmd = cmd.join(" ");
+            println!("{} {} {}", "veil".purple().bold(), "sandbox".white(), full_cmd.dimmed());
+            engines::sandbox::sandbox(&full_cmd)?;
+        }
+        Commands::Whatif { cmd } => {
+            let full_cmd = cmd.join(" ");
+            engines::sandbox::whatif(&full_cmd)?;
+        }
+        Commands::Related { query } => {
+            engines::context_suggest::related(&query)?;
+        }
+        Commands::Workflow { action } => {
+            match action {
+                WorkflowCommands::List => {
+                    engines::context_suggest::workflow_list()?;
+                }
+                WorkflowCommands::Save { name } => {
+                    engines::context_suggest::workflow_save(&name)?;
+                }
+            }
+        }
+        Commands::Next => {
+            engines::context_suggest::next()?;
+        }
+        Commands::Analyze => {
+            println!("{} {}", "veil".purple().bold(), "analyze".white());
+            engines::analyzer::analyze()?;
+        }
+        Commands::Deps { format } => {
+            if format == "json" {
+                engines::analyzer::deps_json()?;
+            } else {
+                engines::analyzer::deps_visual()?;
+            }
+        }
+        Commands::Impact { file } => {
+            engines::analyzer::impact(&file)?;
         }
         Commands::Record { command, exit_code, directory } => {
             engines::memoir::record(&command, exit_code, &directory)?;
