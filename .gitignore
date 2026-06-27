@@ -18,3 +18,9 @@ $RECYCLE.BIN/
 # Environment files
 .env
 *.env
+
+# Local Cargo config (machine-specific linker paths)
+.cargo/
+
+# Misplaced binaries in repo root
+*.exe
