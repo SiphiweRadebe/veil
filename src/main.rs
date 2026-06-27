@@ -8,7 +8,7 @@ use colored::*;
 #[derive(Parser)]
 #[command(name = "veil")]
 #[command(about = "A thin, intelligent layer over your terminal")]
-#[command(version = "1.0.2")]
+#[command(version = "2.0.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -42,24 +42,20 @@ enum Commands {
     },
     /// Jump to a bookmarked directory
     Go {
-        /// Name of the bookmark
         name: String,
     },
     /// Rewind terminal to a previous state
     Rewind {
-        /// Minutes to go back
         #[arg(default_value = "5")]
         minutes: u64,
     },
     /// Show timeline of snapshots
     Timeline {
-        /// How many to show
         #[arg(default_value = "10")]
         limit: usize,
     },
     /// Replay a snapshot from a specific time
     Play {
-        /// Timestamp or offset (e.g., "5m")
         time: String,
     },
     /// Run command in isolated sandbox
@@ -87,49 +83,12 @@ enum Commands {
     Analyze,
     /// Show dependency graph
     Deps {
-        /// Output format: visual or json
         #[arg(long, default_value = "visual")]
         format: String,
     },
     /// Analyze impact of file changes
     Impact {
-        /// File to analyze
         file: String,
-    },
-    /// Export configuration for shell
-    Export {
-        /// Shell type: bash, zsh, powershell
-        shell: String,
-    },
-    /// Import aliases from shell
-    Import {
-        /// Shell type: bash, zsh, powershell
-        shell: String,
-    },
-    /// Bi-directional shell sync
-    SyncShell {
-        /// Shell type: bash, zsh, powershell
-        shell: String,
-    },
-    /// Setup file watching and automation
-    Watch {
-        #[command(subcommand)]
-        action: WatchCommands,
-    },
-    /// Schedule commands to run on cron
-    Schedule {
-        #[command(subcommand)]
-        action: ScheduleCommands,
-    },
-    /// Team collaboration and shared configs
-    Team {
-        #[command(subcommand)]
-        action: TeamCommands,
-    },
-    /// Remote host execution and management
-    Remote {
-        #[command(subcommand)]
-        action: RemoteCommands,
     },
     /// Audit dependencies and environment
     Audit,
@@ -138,15 +97,15 @@ enum Commands {
         #[command(subcommand)]
         action: SessionCommands,
     },
-    /// Track and compare environment variables
-    Env {
+    /// Remote host execution and management
+    Remote {
         #[command(subcommand)]
-        action: EnvCommands,
+        action: RemoteCommands,
     },
-    /// Manage and suggest aliases
-    Alias {
+    /// Team collaboration and shared configs
+    Team {
         #[command(subcommand)]
-        action: AliasCommands,
+        action: TeamCommands,
     },
     #[command(hide = true)]
     Record {
@@ -164,15 +123,9 @@ enum Commands {
 #[derive(Subcommand)]
 enum BookmarkCommands {
     /// Save current directory as a bookmark
-    Add {
-        /// Name for this bookmark
-        name: String,
-    },
+    Add { name: String },
     /// Remove a bookmark
-    Remove {
-        /// Name of the bookmark to remove
-        name: String,
-    },
+    Remove { name: String },
     /// List all bookmarks
     List,
 }
@@ -187,114 +140,11 @@ enum SessionCommands {
 }
 
 #[derive(Subcommand)]
-enum EnvCommands {
-    /// Capture current environment as baseline
-    Capture,
-    /// Compare environment to baseline and report changes
-    Diff,
-}
-
-#[derive(Subcommand)]
-enum AliasCommands {
-    /// Create a new alias
-    Add {
-        name: String,
-        #[arg(trailing_var_arg = true)]
-        command: Vec<String>,
-    },
-    /// List all aliases
-    List,
-    /// Suggest aliases based on command history
-    Suggest,
-}
-
-#[derive(Subcommand)]
 enum WorkflowCommands {
     /// List all saved workflows
     List,
     /// Save current command sequence as workflow
-    Save {
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum WatchCommands {
-    /// Setup file watcher
-    Add {
-        name: String,
-        pattern: String,
-        #[arg(trailing_var_arg = true)]
-        command: Vec<String>,
-    },
-    /// List active watchers
-    List,
-    /// Run a watcher
-    Run {
-        name: String,
-        #[arg(default_value = "30")]
-        interval: u64,
-    },
-    /// Remove watcher
-    Remove {
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum ScheduleCommands {
-    /// Schedule a recurring command
-    Add {
-        name: String,
-        cron: String,
-        #[arg(trailing_var_arg = true)]
-        command: Vec<String>,
-    },
-    /// List scheduled tasks
-    List,
-    /// Run a scheduled task
-    Run {
-        name: String,
-    },
-    /// Remove scheduled task
-    Remove {
-        name: String,
-    },
-}
-
-#[derive(Subcommand)]
-enum TeamCommands {
-    /// Setup team configuration
-    Setup {
-        name: String,
-        remote_type: String,
-        url: String,
-    },
-    /// List team configurations
-    List,
-    /// Share a bookmark with team
-    Share {
-        #[command(subcommand)]
-        action: TeamShareCommands,
-    },
-    /// Pull updates from team
-    Pull,
-}
-
-#[derive(Subcommand)]
-enum TeamShareCommands {
-    /// Share a bookmark
-    Bookmark {
-        name: String,
-        #[arg(default_value = "")]
-        description: String,
-    },
-    /// Share a workflow
-    Workflow {
-        name: String,
-        #[arg(default_value = "")]
-        description: String,
-    },
+    Save { name: String },
 }
 
 #[derive(Subcommand)]
@@ -317,19 +167,44 @@ enum RemoteCommands {
         #[arg(trailing_var_arg = true)]
         command: Vec<String>,
     },
-    /// Run command on multiple hosts
-    Broadcast {
-        pattern: String,
-        #[arg(trailing_var_arg = true)]
-        command: Vec<String>,
-    },
     /// Share session replay
-    Share {
-        session_id: String,
-    },
+    Share { session_id: String },
     /// Remove remote host
-    Remove {
+    Remove { name: String },
+}
+
+#[derive(Subcommand)]
+enum TeamCommands {
+    /// Setup team configuration
+    Setup {
         name: String,
+        remote_type: String,
+        url: String,
+    },
+    /// List team configurations
+    List,
+    /// Share a bookmark or workflow with team
+    Share {
+        #[command(subcommand)]
+        action: TeamShareCommands,
+    },
+    /// Pull updates from team
+    Pull,
+}
+
+#[derive(Subcommand)]
+enum TeamShareCommands {
+    /// Share a bookmark
+    Bookmark {
+        name: String,
+        #[arg(default_value = "")]
+        description: String,
+    },
+    /// Share a workflow
+    Workflow {
+        name: String,
+        #[arg(default_value = "")]
+        description: String,
     },
 }
 
@@ -365,9 +240,7 @@ fn main() -> Result<()> {
         Commands::Bookmark { action } => {
             match action {
                 BookmarkCommands::Add { name } => {
-                    let dir = std::env::current_dir()?
-                        .to_string_lossy()
-                        .to_string();
+                    let dir = std::env::current_dir()?.to_string_lossy().to_string();
                     engines::bookmarks::add(&name, &dir)?;
                 }
                 BookmarkCommands::Remove { name } => {
@@ -380,43 +253,7 @@ fn main() -> Result<()> {
         }
         Commands::Go { name } => {
             let path = engines::bookmarks::get(&name)?;
-            // Print the path so the PowerShell hook can cd to it
             println!("VEIL_CD:{}", path);
-        }
-        Commands::Audit => {
-            println!("{} {}", "veil".purple().bold(), "audit".white());
-            engines::auditor::audit()?;
-        }
-        Commands::Session { action } => {
-            match action {
-                SessionCommands::Replay { limit } => {
-                    engines::recorder::replay(limit)?;
-                }
-            }
-        }
-        Commands::Env { action } => {
-            match action {
-                EnvCommands::Capture => {
-                    engines::envoy::capture()?;
-                }
-                EnvCommands::Diff => {
-                    engines::envoy::diff()?;
-                }
-            }
-        }
-        Commands::Alias { action } => {
-            match action {
-                AliasCommands::Add { name, command } => {
-                    let cmd_str = command.join(" ");
-                    engines::sage::add_alias(&name, &cmd_str)?;
-                }
-                AliasCommands::List => {
-                    engines::sage::list_aliases()?;
-                }
-                AliasCommands::Suggest => {
-                    engines::sage::suggest()?;
-                }
-            }
         }
         Commands::Rewind { minutes } => {
             engines::temporal::rewind(minutes)?;
@@ -466,48 +303,35 @@ fn main() -> Result<()> {
         Commands::Impact { file } => {
             engines::analyzer::impact(&file)?;
         }
-        Commands::Export { shell } => {
-            println!("{} {} for {}", "veil".purple().bold(), "export".white(), shell.cyan());
-            engines::sync::export(&shell)?;
+        Commands::Audit => {
+            println!("{} {}", "veil".purple().bold(), "audit".white());
+            engines::auditor::audit()?;
         }
-        Commands::Import { shell } => {
-            println!("{} {} from {}", "veil".purple().bold(), "import".white(), shell.cyan());
-            engines::sync::import(&shell)?;
-        }
-        Commands::SyncShell { shell } => {
-            engines::sync::sync_shell(&shell)?;
-        }
-        Commands::Watch { action } => {
+        Commands::Session { action } => {
             match action {
-                WatchCommands::Add { name, pattern, command } => {
-                    let cmd_str = command.join(" ");
-                    engines::monitor::watch(&name, &pattern, &cmd_str)?;
-                }
-                WatchCommands::List => {
-                    engines::monitor::watch_list()?;
-                }
-                WatchCommands::Run { name, interval } => {
-                    engines::monitor::watch_run(&name, interval)?;
-                }
-                WatchCommands::Remove { name } => {
-                    engines::monitor::watch_remove(&name)?;
+                SessionCommands::Replay { limit } => {
+                    engines::recorder::replay(limit)?;
                 }
             }
         }
-        Commands::Schedule { action } => {
+        Commands::Remote { action } => {
             match action {
-                ScheduleCommands::Add { name, cron, command } => {
+                RemoteCommands::Add { name, host, user, key, tags } => {
+                    engines::remote::add_host(&name, &host, &user, key.as_deref(), tags.as_deref())?;
+                }
+                RemoteCommands::List => {
+                    engines::remote::host_list()?;
+                }
+                RemoteCommands::Ssh { host, command } => {
                     let cmd_str = command.join(" ");
-                    engines::schedule::schedule(&name, &cron, &cmd_str)?;
+                    println!("{} {} ssh {}", "veil".purple().bold(), "remote".white(), host.cyan());
+                    engines::remote::ssh(&host, &cmd_str)?;
                 }
-                ScheduleCommands::List => {
-                    engines::schedule::schedule_list()?;
+                RemoteCommands::Share { session_id } => {
+                    engines::remote::replay_share(&session_id)?;
                 }
-                ScheduleCommands::Run { name } => {
-                    engines::schedule::schedule_run(&name)?;
-                }
-                ScheduleCommands::Remove { name } => {
-                    engines::schedule::schedule_remove(&name)?;
+                RemoteCommands::Remove { name } => {
+                    engines::remote::host_remove(&name)?;
                 }
             }
         }
@@ -531,31 +355,6 @@ fn main() -> Result<()> {
                 }
                 TeamCommands::Pull => {
                     engines::team::team_pull()?;
-                }
-            }
-        }
-        Commands::Remote { action } => {
-            match action {
-                RemoteCommands::Add { name, host, user, key, tags } => {
-                    engines::remote::add_host(&name, &host, &user, key.as_deref(), tags.as_deref())?;
-                }
-                RemoteCommands::List => {
-                    engines::remote::host_list()?;
-                }
-                RemoteCommands::Ssh { host, command } => {
-                    let cmd_str = command.join(" ");
-                    println!("{} {} ssh {}", "veil".purple().bold(), "remote".white(), host.cyan());
-                    engines::remote::ssh(&host, &cmd_str)?;
-                }
-                RemoteCommands::Broadcast { pattern, command } => {
-                    let cmd_str = command.join(" ");
-                    engines::remote::broadcast(&pattern, &cmd_str)?;
-                }
-                RemoteCommands::Share { session_id } => {
-                    engines::remote::replay_share(&session_id)?;
-                }
-                RemoteCommands::Remove { name } => {
-                    engines::remote::host_remove(&name)?;
                 }
             }
         }

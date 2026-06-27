@@ -1,6 +1,6 @@
 [package]
 name = "veil-shell"
-version = "1.0.2"
+version = "2.0.0"
 edition = "2021"
 description = "A thin, intelligent layer over your terminal. Undo anything, preview everything, remember it all."
 license = "MIT"
