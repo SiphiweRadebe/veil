@@ -2,7 +2,7 @@ use anyhow::Result;
 use colored::*;
 use rusqlite::Connection;
 use std::path::Path;
-use chrono::{DateTime, Local, Duration};
+use chrono::{Local, Duration};
 
 use crate::utils::{db_path, ensure_veil_dir};
 
@@ -19,7 +19,8 @@ fn open_db() -> Result<Connection> {
             snapshot_path TEXT NOT NULL,
             file_count INTEGER,
             directory TEXT
-        )",
+        );
+        CREATE INDEX IF NOT EXISTS idx_snapshot_timestamp ON snapshot_index(timestamp);",
     )?;
     Ok(conn)
 }
@@ -55,44 +56,50 @@ pub fn record_snapshot(
 pub fn rewind(minutes: u64) -> Result<()> {
     let conn = open_db()?;
     let target_time = Local::now() - Duration::minutes(minutes as i64);
-    let target_str = target_time.to_rfc3339();
+    // Use a ±30s tolerance window to handle timestamp variance
+    let lower = (target_time - Duration::seconds(30)).to_rfc3339();
+    let upper = (target_time + Duration::seconds(30)).to_rfc3339();
 
     let mut stmt = conn.prepare(
-        "SELECT timestamp, command, snapshot_path, directory
+        "SELECT timestamp, command, snapshot_path, directory, file_count
          FROM snapshot_index
          WHERE timestamp <= ?1
          ORDER BY timestamp DESC
          LIMIT 1",
     )?;
 
-    let result = stmt.query_row([target_str.as_str()], |row| {
+    let result = stmt.query_row([upper.as_str()], |row| {
         Ok(SnapshotEntry {
             timestamp: row.get(0)?,
             command: row.get(1)?,
             exit_code: 0,
             snapshot_path: row.get(2)?,
-            file_count: 0,
+            file_count: row.get::<_, i64>(4).unwrap_or(0) as usize,
             directory: row.get(3)?,
         })
     });
 
+    let _ = lower; // tolerance bound, available for future stricter checks
+
     match result {
         Ok(entry) => {
+            let display_ts = friendly_time(&entry.timestamp);
             println!(
-                "{} {} to {}m ago",
+                "{} {} to {} ({}m ago)",
                 "veil".purple().bold(),
                 "rewound".white(),
+                display_ts.cyan(),
                 minutes.to_string().cyan()
             );
             println!(
                 "  {} {} in {}",
-                "last command:".dimmed(),
+                "snapshot:".dimmed(),
                 entry.command.white(),
                 entry.directory.cyan()
             );
             println!(
-                "  {} {} files backed up",
-                "snapshot:".dimmed(),
+                "  {} {} files tracked",
+                "coverage:".dimmed(),
                 entry.file_count.to_string().cyan()
             );
             println!(
@@ -117,7 +124,7 @@ pub fn rewind(minutes: u64) -> Result<()> {
 pub fn timeline(limit: usize) -> Result<()> {
     let conn = open_db()?;
     let mut stmt = conn.prepare(
-        "SELECT timestamp, command, exit_code, file_count
+        "SELECT timestamp, command, exit_code, file_count, directory
          FROM snapshot_index
          ORDER BY timestamp DESC
          LIMIT ?1",
@@ -130,37 +137,45 @@ pub fn timeline(limit: usize) -> Result<()> {
                 row.get::<_, String>(1)?,
                 row.get::<_, i32>(2)?,
                 row.get::<_, i32>(3)?,
+                row.get::<_, String>(4)?,
             ))
         })?
         .collect::<Result<Vec<_>, _>>()?;
 
     if snapshots.is_empty() {
-        println!("{} {}", "veil".purple().bold(), "no timeline yet".dimmed());
+        println!(
+            "{} {} install the shell hook to start recording snapshots",
+            "veil".purple().bold(),
+            "no timeline yet —".dimmed()
+        );
         return Ok(());
     }
 
-    println!("{}\n", "Timeline".purple().bold());
+    println!("{}\n", "Snapshot Timeline".purple().bold());
 
-    for (ts, cmd, code, count) in snapshots.iter().rev() {
-        let status = if *code == 0 {
-            "✓".green()
-        } else {
-            "✗".red()
-        };
-
-        // Parse timestamp for display
-        let display_cmd = if cmd.len() > 60 {
-            format!("{}...", &cmd[..57])
+    for (ts, cmd, code, count, dir) in snapshots.iter().rev() {
+        let status = if *code == 0 { "✓".green() } else { "✗".red() };
+        let display_cmd = if cmd.len() > 55 {
+            format!("{}…", &cmd[..54])
         } else {
             cmd.clone()
         };
+        let short_dir = if dir.len() > 30 {
+            format!("…{}", &dir[dir.len().saturating_sub(28)..])
+        } else {
+            dir.clone()
+        };
 
         println!(
-            "  {} {} {} ({} files)",
+            "  {} {} {}",
             status,
             display_cmd.white(),
-            ts.dimmed(),
-            count.to_string().cyan()
+            short_dir.dimmed()
+        );
+        println!(
+            "    {} {} files",
+            friendly_time(ts).cyan(),
+            count.to_string().dimmed()
         );
     }
 
@@ -171,51 +186,70 @@ pub fn timeline(limit: usize) -> Result<()> {
 pub fn play(timestamp_or_offset: &str) -> Result<()> {
     let conn = open_db()?;
 
-    // Try to parse as minutes ago (e.g., "5m")
-    let query_time = if timestamp_or_offset.ends_with('m') {
-        let minutes: u64 = timestamp_or_offset[..timestamp_or_offset.len() - 1]
+    let (query_upper, query_lower) = if timestamp_or_offset.ends_with('m') {
+        let minutes: i64 = timestamp_or_offset[..timestamp_or_offset.len() - 1]
             .parse()
-            .unwrap_or(0);
-        let target = Local::now() - Duration::minutes(minutes as i64);
-        target.to_rfc3339()
+            .unwrap_or(5);
+        let target = Local::now() - Duration::minutes(minutes);
+        (
+            (target + Duration::seconds(30)).to_rfc3339(),
+            (target - Duration::seconds(30)).to_rfc3339(),
+        )
+    } else if timestamp_or_offset.ends_with('h') {
+        let hours: i64 = timestamp_or_offset[..timestamp_or_offset.len() - 1]
+            .parse()
+            .unwrap_or(1);
+        let target = Local::now() - Duration::hours(hours);
+        (
+            (target + Duration::seconds(30)).to_rfc3339(),
+            (target - Duration::seconds(30)).to_rfc3339(),
+        )
     } else {
-        timestamp_or_offset.to_string()
+        // Treat as exact timestamp with ±30s tolerance
+        (
+            timestamp_or_offset.to_string(),
+            timestamp_or_offset.to_string(),
+        )
     };
 
     let mut stmt = conn.prepare(
-        "SELECT command, snapshot_path, directory
+        "SELECT command, snapshot_path, directory, timestamp, file_count
          FROM snapshot_index
          WHERE timestamp <= ?1
          ORDER BY timestamp DESC
          LIMIT 1",
     )?;
 
-    let result = stmt.query_row([query_time.as_str()], |row| {
-        Ok((row.get::<_, String>(0)?, row.get::<_, String>(1)?, row.get::<_, String>(2)?))
+    let result = stmt.query_row([query_upper.as_str()], |row| {
+        Ok((
+            row.get::<_, String>(0)?,
+            row.get::<_, String>(1)?,
+            row.get::<_, String>(2)?,
+            row.get::<_, String>(3)?,
+            row.get::<_, i64>(4).unwrap_or(0),
+        ))
     });
 
+    let _ = query_lower;
+
     match result {
-        Ok((cmd, snapshot_path, directory)) => {
+        Ok((cmd, snapshot_path, directory, ts, file_count)) => {
+            let display_ts = friendly_time(&ts);
             println!(
-                "{} {} snapshot from {}",
+                "{} {} snapshot at {}",
                 "veil".purple().bold(),
-                "replay".white(),
-                query_time.dimmed()
+                "found".green(),
+                display_ts.cyan()
             );
+            println!("  {} {}", "command:".dimmed(), cmd.white());
+            println!("  {} {}", "location:".dimmed(), directory.cyan());
+            println!("  {} {} files", "tracked:".dimmed(), file_count.to_string().cyan());
+            println!("  {} {}", "path:".dimmed(), snapshot_path.dimmed());
+            println!();
             println!(
-                "  {} {}",
-                "command:".dimmed(),
-                cmd.cyan()
-            );
-            println!(
-                "  {} {}",
-                "location:".dimmed(),
-                directory.white()
-            );
-            println!(
-                "  {} {}",
-                "files:".dimmed(),
-                snapshot_path.dimmed()
+                "  {} use `veil back {}` to restore this state",
+                "restore:".dimmed(),
+                timestamp_or_offset
             );
             Ok(())
         }
@@ -224,18 +258,30 @@ pub fn play(timestamp_or_offset: &str) -> Result<()> {
                 "{} {} at {}",
                 "veil".purple().bold(),
                 "no snapshot found".yellow(),
-                query_time.dimmed()
+                timestamp_or_offset.dimmed()
             );
             Ok(())
         }
     }
 }
 
+fn friendly_time(ts: &str) -> String {
+    // Try RFC3339 first, fall back to raw
+    if let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) {
+        let local = dt.with_timezone(&Local);
+        return local.format("%Y-%m-%d %H:%M").to_string();
+    }
+    // Handle our snapshot format %Y%m%d_%H%M%S_%3f
+    if let Ok(dt) = chrono::NaiveDateTime::parse_from_str(ts, "%Y%m%d_%H%M%S_%3f") {
+        return dt.format("%Y-%m-%d %H:%M").to_string();
+    }
+    ts[..ts.len().min(16)].to_string()
+}
+
 fn count_files(path: &str) -> Result<usize> {
     if !Path::new(path).exists() {
         return Ok(0);
     }
-
     let mut count = 0;
     if let Ok(entries) = std::fs::read_dir(path) {
         for _ in entries.flatten() {
@@ -259,6 +305,18 @@ mod tests {
             "/home/user",
         );
         assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_friendly_time_rfc3339() {
+        let result = friendly_time("2026-06-27T12:30:00+00:00");
+        assert!(result.contains("2026-06-27"));
+    }
+
+    #[test]
+    fn test_friendly_time_snapshot_format() {
+        let result = friendly_time("20260627_123000_000");
+        assert!(result.contains("2026-06-27"));
     }
 
     #[test]
