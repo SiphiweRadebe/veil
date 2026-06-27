@@ -30,9 +30,15 @@ pub fn related(query: &str) -> Result<()> {
     let memoir_path = crate::utils::db_path("memoir");
     let memoir_conn = Connection::open(&memoir_path)?;
 
-    let mut stmt = memoir_conn.prepare(
+    let mut stmt = match memoir_conn.prepare(
         "SELECT command FROM commands ORDER BY timestamp DESC LIMIT 100",
-    )?;
+    ) {
+        Ok(s) => s,
+        Err(_) => {
+            println!("{} {} similar to \"{}\"", "veil".purple().bold(), "no commands".yellow(), query.cyan());
+            return Ok(());
+        }
+    };
 
     let commands: Vec<String> = stmt
         .query_map([], |row| row.get::<_, String>(0))?
@@ -189,13 +195,18 @@ pub fn workflow_save(name: &str) -> Result<()> {
 }
 
 pub fn next() -> Result<()> {
-    // Read recent commands from memoir
     let memoir_path = crate::utils::db_path("memoir");
     let memoir_conn = Connection::open(&memoir_path)?;
 
-    let mut stmt = memoir_conn.prepare(
+    let mut stmt = match memoir_conn.prepare(
         "SELECT command, exit_code FROM commands ORDER BY timestamp DESC LIMIT 20",
-    )?;
+    ) {
+        Ok(s) => s,
+        Err(_) => {
+            println!("{} {} run some commands first", "veil".purple().bold(), "no history yet.".dimmed());
+            return Ok(());
+        }
+    };
 
     let history: Vec<_> = stmt
         .query_map([], |row| Ok((row.get::<_, String>(0)?, row.get::<_, i32>(1)?)))?
