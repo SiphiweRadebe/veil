@@ -10,7 +10,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/built_with-Rust-orange?style=flat-square"/>
   <img src="https://img.shields.io/badge/platform-Windows%20%7C%20Linux%20%7C%20macOS-blue?style=flat-square"/>
-  <img src="https://img.shields.io/badge/version-0.1.0-purple?style=flat-square"/>
+  <img src="https://img.shields.io/badge/version-0.1.2-purple?style=flat-square"/>
   <img src="https://img.shields.io/badge/license-MIT-green?style=flat-square"/>
 </p>
 
@@ -35,19 +35,38 @@ Veil works silently in the background. You use your terminal exactly as you alwa
 
 ## Install
 
-### 1. Install Rust
-```bash
-curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
+### Quick Start (Recommended)
+**Get pre-built binaries from [GitHub Releases](https://github.com/SiphiweRadebe/veil/releases)** — Windows, Linux, macOS all included.
+
+### Build from Source
+
+#### Windows
+**Option A: Automated (Recommended)**
+```batch
+install-build-tools.bat
 ```
 
-### 2. Clone and build
+**Option B: Manual**
+1. Download [Build Tools for Visual Studio](https://visualstudio.microsoft.com/downloads/)
+2. Install "Desktop development with C++" workload
+3. Run: `cargo build --release`
+
+#### Linux / macOS
 ```bash
+curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh
 git clone https://github.com/SiphiweRadebe/veil.git
 cd veil
 cargo build --release
 ```
 
-### 3. Install the binary
+#### Docker (Any Platform)
+```bash
+docker build -t veil . && docker run veil veil --help
+```
+
+For detailed build setup, see [BUILD_SETUP.md](BUILD_SETUP.md)
+
+### Installation
 ```bash
 # Linux / macOS
 cp target/release/veil ~/.local/bin/veil
@@ -104,10 +123,17 @@ drift  memoir  context  phantom  trace
 - [x] v0.1 — memoir + drift (history search + undo)
 - [x] v0.1 — context (project awareness)
 - [x] v0.1 — phantom (danger pattern detection)
-- [ ] v0.2 — bash/zsh hook support
-- [ ] v0.3 — phantom v2 (full sandbox via Linux namespaces)
-- [ ] v0.4 — trace v2 (syscall explainer via eBPF)
-- [ ] v0.5 — AI layer (natural language search via Claude API)
+- [x] v0.1 — bookmarks, aliases, environment tracking
+- [ ] **v1.0 (Major Release)**
+  - [ ] **Temporal Navigation** — `veil rewind`, `veil play` (time-travel debugging)
+  - [ ] **Safe Exploration** — `veil sandbox`, `veil whatif` (risk-free testing)
+  - [ ] **Context Awareness** — `veil related`, `veil workflow`, `veil next` (pattern learning)
+  - [ ] **Project Intelligence** — `veil analyze`, `veil deps`, `veil impact` (dependency analysis)
+  - [ ] **Shell Sync** — `veil export`, `veil import` (bash/zsh/PowerShell portability)
+  - [ ] **Monitoring** — `veil watch`, `veil schedule` (automation & cron)
+  - [ ] **Team Collaboration** — `veil sync-team`, `veil broadcast` (team workflows)
+  - [ ] **Remote Execution** — `veil ssh`, `veil broadcast` (multi-machine management)
+- [ ] v1.1+ — AI layer (Claude API for natural language search)
 
 ---
 
