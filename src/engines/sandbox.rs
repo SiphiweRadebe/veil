@@ -2,10 +2,9 @@ use anyhow::Result;
 use colored::*;
 use std::fs;
 use std::path::{Path, PathBuf};
-use std::process::Command;
 
 use crate::engines::patterns::command_danger::{assess_command_risk, format_risk};
-use crate::utils::{veil_dir, ensure_veil_dir};
+use crate::utils::{veil_dir, ensure_veil_dir, shell_exec};
 
 fn sandboxes_dir() -> PathBuf {
     veil_dir().join("sandboxes")
@@ -47,9 +46,7 @@ pub fn sandbox(cmd: &str) -> Result<()> {
     );
 
     // Run command in sandbox
-    let output = Command::new("sh")
-        .arg("-c")
-        .arg(cmd)
+    let output = shell_exec(cmd)
         .current_dir(&sandbox_path)
         .output();
 

@@ -1,12 +1,11 @@
 use anyhow::Result;
 use colored::*;
 use rusqlite::Connection;
-use std::process::Command;
 use std::thread;
 use std::time::Duration;
 use chrono::Local;
 
-use crate::utils::{db_path, ensure_veil_dir};
+use crate::utils::{db_path, ensure_veil_dir, shell_exec};
 
 fn open_db() -> Result<Connection> {
     let path = db_path("scheduling");
@@ -150,7 +149,7 @@ pub fn schedule_run(name: &str) -> Result<()> {
                 // Simple check: run if next_run is in the past
                 if next_run <= now {
                     let start = std::time::Instant::now();
-                    let output = Command::new("sh").arg("-c").arg(&command).output();
+                    let output = shell_exec(&command).output();
 
                     if let Ok(output) = output {
                         let duration = start.elapsed().as_millis();
@@ -226,7 +225,11 @@ fn is_valid_cron(expr: &str) -> bool {
     // Basic validation: should have 5 parts (minute hour day month dow)
     parts.len() == 5
         && parts.iter().all(|p| {
-            *p == "*" || p.parse::<u32>().is_ok() || p.contains('-') || p.contains(',')
+            *p == "*"
+                || p.parse::<u32>().is_ok()
+                || p.contains('-')
+                || p.contains(',')
+                || p.contains('/')
         })
 }
 

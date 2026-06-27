@@ -49,6 +49,19 @@ pub fn format_info(label: &str, msg: &str) -> String {
     format!("{} {} {}", "veil".purple().bold(), label.white(), msg.dimmed())
 }
 
+/// Returns a shell Command that works on both Windows (cmd /C) and Unix (sh -c).
+pub fn shell_exec(cmd: &str) -> std::process::Command {
+    if cfg!(target_os = "windows") {
+        let mut c = std::process::Command::new("cmd");
+        c.args(["/C", cmd]);
+        c
+    } else {
+        let mut c = std::process::Command::new("sh");
+        c.args(["-c", cmd]);
+        c
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

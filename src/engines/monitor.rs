@@ -1,11 +1,10 @@
 use anyhow::Result;
 use colored::*;
 use rusqlite::Connection;
-use std::process::Command;
 use std::thread;
 use std::time::Duration;
 
-use crate::utils::{db_path, ensure_veil_dir};
+use crate::utils::{db_path, ensure_veil_dir, shell_exec};
 
 fn open_db() -> Result<Connection> {
     let path = db_path("monitoring");
@@ -129,7 +128,7 @@ pub fn watch_run(name: &str, poll_interval: u64) -> Result<()> {
                 thread::sleep(Duration::from_secs(poll_interval));
 
                 // Run the command
-                let output = Command::new("sh").arg("-c").arg(&command).output();
+                let output = shell_exec(&command).output();
 
                 if let Ok(output) = output {
                     let exit_code = output.status.code().unwrap_or(-1);

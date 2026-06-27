@@ -8,7 +8,7 @@ use colored::*;
 #[derive(Parser)]
 #[command(name = "veil")]
 #[command(about = "A thin, intelligent layer over your terminal")]
-#[command(version = "0.1.2")]
+#[command(version = "1.0.0")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,

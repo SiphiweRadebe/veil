@@ -1,7 +1,6 @@
 use anyhow::Result;
 use colored::*;
 use rusqlite::Connection;
-use std::process::Command;
 
 use crate::utils::{db_path, ensure_veil_dir};
 
@@ -123,7 +122,11 @@ pub fn ssh(host: &str, command: &str) -> Result<()> {
     );
 
     let remote_cmd = format!("ssh {}@{} \"{}\"", user, hostname, command);
-    let output = Command::new("sh").arg("-c").arg(&remote_cmd).output();
+    let _ = &remote_cmd; // kept for logging context
+    let output = std::process::Command::new("ssh")
+        .arg(format!("{}@{}", user, hostname))
+        .arg(command)
+        .output();
 
     match output {
         Ok(output) => {
@@ -202,9 +205,10 @@ pub fn broadcast(pattern: &str, command: &str) -> Result<()> {
         println!("  {} {}@{}", "→".dimmed(), user.cyan(), host.white());
 
         let remote_cmd = format!("ssh {}@{} \"{}\"", user, host, command);
-        let output = Command::new("sh")
-            .arg("-c")
-            .arg(&remote_cmd)
+        let _ = &remote_cmd;
+        let output = std::process::Command::new("ssh")
+            .arg(format!("{}@{}", user, host))
+            .arg(command)
             .output();
 
         match output {
