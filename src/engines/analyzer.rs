@@ -126,26 +126,23 @@ fn calculate_metrics(path: &Path) -> Result<Metrics> {
     let mut estimated_complexity = 0.0;
 
     for entry in walkdir(path, 0) {
-        if let Ok(entry) = entry {
-            let path = entry.path();
-            if is_code_file(&path) {
-                total_files += 1;
+        let path = entry.path();
+        if is_code_file(&path) {
+            total_files += 1;
 
-                if let Ok(content) = fs::read_to_string(&path) {
-                    let lines = content.lines().count();
-                    total_lines += lines;
+            if let Ok(content) = fs::read_to_string(&path) {
+                let lines = content.lines().count();
+                total_lines += lines;
 
-                    // Very rough complexity estimate
-                    let complexity_indicators = [
-                        ("if", content.matches("if").count()),
-                        ("loop", content.matches("for").count() + content.matches("while").count()),
-                        ("match", content.matches("match").count()),
-                        ("fn", content.matches("fn").count()),
-                    ];
+                let complexity_indicators = [
+                    ("if", content.matches("if").count()),
+                    ("loop", content.matches("for").count() + content.matches("while").count()),
+                    ("match", content.matches("match").count()),
+                    ("fn", content.matches("fn").count()),
+                ];
 
-                    for (_, count) in &complexity_indicators {
-                        estimated_complexity += *count as f32 * 0.5;
-                    }
+                for (_, count) in &complexity_indicators {
+                    estimated_complexity += *count as f32 * 0.5;
                 }
             }
         }
@@ -168,29 +165,26 @@ fn detect_dead_code(path: &Path) -> Result<Vec<CodeIssue>> {
     let mut issues = Vec::new();
 
     for entry in walkdir(path, 0) {
-        if let Ok(entry) = entry {
-            let file_path = entry.path();
-            if is_code_file(&file_path) {
-                if let Ok(content) = fs::read_to_string(&file_path) {
-                    // Detect unused variable patterns (very basic)
-                    if content.contains("let _ =") || content.contains("_unused") {
-                        issues.push(CodeIssue {
-                            file: file_path.display().to_string(),
-                            description: "unused variables detected".to_string(),
-                        });
-                    }
+        let file_path = entry.path();
+        if is_code_file(&file_path) {
+            if let Ok(content) = fs::read_to_string(&file_path) {
+                if content.contains("let _ =") || content.contains("_unused") {
+                    issues.push(CodeIssue {
+                        file: file_path.display().to_string(),
+                        description: "unused variables detected".to_string(),
+                    });
+                }
 
-                    // Detect commented-out code
-                    let comment_lines = content
-                        .lines()
-                        .filter(|l| l.trim().starts_with("//") || l.trim().starts_with("#"))
-                        .count();
-                    if comment_lines > content.lines().count() / 10 {
-                        issues.push(CodeIssue {
-                            file: file_path.display().to_string(),
-                            description: format!("{}% commented code", (comment_lines * 100) / content.lines().count()),
-                        });
-                    }
+                let comment_lines = content
+                    .lines()
+                    .filter(|l| l.trim().starts_with("//") || l.trim().starts_with("#"))
+                    .count();
+                let total_lines = content.lines().count();
+                if total_lines > 0 && comment_lines > total_lines / 10 {
+                    issues.push(CodeIssue {
+                        file: file_path.display().to_string(),
+                        description: format!("{}% commented code", (comment_lines * 100) / total_lines),
+                    });
                 }
             }
         }
@@ -203,16 +197,12 @@ fn extract_dependencies(path: &Path) -> Result<Vec<(String, usize)>> {
     let mut deps: HashMap<String, usize> = HashMap::new();
 
     for entry in walkdir(path, 0) {
-        if let Ok(entry) = entry {
-            let file_path = entry.path();
-
-            // Check for imports/requires
-            if let Ok(content) = fs::read_to_string(&file_path) {
-                for line in content.lines() {
-                    if line.contains("import ") || line.contains("require(") {
-                        if let Some(dep) = extract_dep_name(line) {
-                            *deps.entry(dep).or_insert(0) += 1;
-                        }
+        let file_path = entry.path();
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            for line in content.lines() {
+                if line.contains("import ") || line.contains("require(") {
+                    if let Some(dep) = extract_dep_name(line) {
+                        *deps.entry(dep).or_insert(0) += 1;
                     }
                 }
             }
@@ -228,13 +218,10 @@ fn find_dependents(path: &Path, target_file: &str) -> Result<Vec<String>> {
     let mut dependents = Vec::new();
 
     for entry in walkdir(path, 0) {
-        if let Ok(entry) = entry {
-            let file_path = entry.path();
-
-            if let Ok(content) = fs::read_to_string(&file_path) {
-                if content.contains(target_file) || content.contains(path_to_module(target_file)) {
-                    dependents.push(file_path.display().to_string());
-                }
+        let file_path = entry.path();
+        if let Ok(content) = fs::read_to_string(&file_path) {
+            if content.contains(target_file) || content.contains(path_to_module(target_file).as_str()) {
+                dependents.push(file_path.display().to_string());
             }
         }
     }
@@ -254,7 +241,7 @@ fn is_code_file(path: &Path) -> bool {
     }
 }
 
-fn walkdir(path: &Path, depth: u32) -> Vec<std::io::Result<fs::DirEntry>> {
+fn walkdir(path: &Path, depth: u32) -> Vec<fs::DirEntry> {
     let mut result = Vec::new();
     let ignore_dirs = ["target", "node_modules", ".git", "dist", "build"];
 
@@ -263,15 +250,13 @@ fn walkdir(path: &Path, depth: u32) -> Vec<std::io::Result<fs::DirEntry>> {
     }
 
     if let Ok(entries) = fs::read_dir(path) {
-        for entry in entries {
-            if let Ok(entry) = &entry {
-                let name = entry.file_name();
-                if !ignore_dirs.contains(&name.to_string_lossy().as_ref()) {
-                    result.push(entry);
-                    if entry.path().is_dir() && depth < 3 {
-                        result.extend(walkdir(&entry.path(), depth + 1));
-                    }
+        for entry in entries.flatten() {
+            let name = entry.file_name();
+            if !ignore_dirs.contains(&name.to_string_lossy().as_ref()) {
+                if entry.path().is_dir() && depth < 3 {
+                    result.extend(walkdir(&entry.path(), depth + 1));
                 }
+                result.push(entry);
             }
         }
     }
