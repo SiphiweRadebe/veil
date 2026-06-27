@@ -56,8 +56,13 @@ jobs:
         with:
           path: artifacts
 
+      - name: Rename artifacts with platform suffix
+        run: |
+          mv artifacts/veil-x86_64-unknown-linux-gnu/veil artifacts/veil-x86_64-unknown-linux-gnu/veil-linux
+          mv artifacts/veil-x86_64-apple-darwin/veil artifacts/veil-x86_64-apple-darwin/veil-macos
+
       - name: Create Release
-        uses: softprops/action-gh-release@v1
+        uses: softprops/action-gh-release@v2
         with:
           files: artifacts/**/*
           draft: false
