@@ -8,3 +8,4 @@ pub mod auditor;
 pub mod recorder;
 pub mod envoy;
 pub mod sage;
+pub mod patterns;
