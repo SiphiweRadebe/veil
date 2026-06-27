@@ -230,7 +230,7 @@ fn is_valid_cron(expr: &str) -> bool {
         })
 }
 
-fn calculate_next_run(cron: &str) -> Result<String> {
+fn calculate_next_run(_cron: &str) -> Result<String> {
     // Simplified: just add time until next occurrence
     // In production, use the `cron` crate for proper calculation
     let now = Local::now();

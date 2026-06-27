@@ -78,13 +78,13 @@ pub fn sync_shell(shell_type: &str) -> Result<()> {
 }
 
 fn export_posix(home: &str, shell_type: &str) -> Result<()> {
-    let config_file = if shell_type == "bash" {
+    let _config_file = if shell_type == "bash" {
         format!("{}/.bashrc", home)
     } else {
         format!("{}/.zshrc", home)
     };
 
-    let veil_hook = format!(
+    let _veil_hook = format!(
         r#"
 # Veil shell integration
 export VEIL_SESSION_ID=$(date +%s)
@@ -107,7 +107,7 @@ alias veil-preview='veil preview'
         .collect::<Result<Vec<_>, _>>()?;
 
     let mut alias_export = String::new();
-    for (alias, cmd) in aliases {
+    for (alias, cmd) in &aliases {
         alias_export.push_str(&format!("alias {}='{}'\n", alias, cmd));
     }
 
@@ -132,7 +132,7 @@ fn export_powershell(home: &str) -> Result<()> {
         home
     );
 
-    let veil_hook = r#"
+    let _veil_hook = r#"
 # Veil shell integration for PowerShell
 $env:VEIL_SESSION_ID = [int][double]::Parse((Get-Date -UFormat %s))
 
@@ -148,7 +148,8 @@ function veil-go {
 "#;
 
     // Create profile directory if it doesn't exist
-    let profile_dir = PathBuf::from(&profile_path).parent().unwrap();
+    let profile_path_buf = PathBuf::from(&profile_path);
+    let profile_dir = profile_path_buf.parent().unwrap();
     fs::create_dir_all(profile_dir)?;
 
     println!(

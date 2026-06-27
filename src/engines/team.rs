@@ -188,7 +188,7 @@ pub fn team_pull() -> Result<()> {
 
         if !bookmarks.is_empty() {
             println!("  {} bookmarks:", "synced".green());
-            for (name, path, by) in bookmarks {
+            for (name, _path, by) in bookmarks {
                 println!("    {} {} (from {})", "→".dimmed(), name.cyan(), by.dimmed());
             }
         }

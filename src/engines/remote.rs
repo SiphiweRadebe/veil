@@ -198,7 +198,7 @@ pub fn broadcast(pattern: &str, command: &str) -> Result<()> {
         hosts.len().to_string().cyan()
     );
 
-    for (name, user, host) in hosts {
+    for (_name, user, host) in hosts {
         println!("  {} {}@{}", "→".dimmed(), user.cyan(), host.white());
 
         let remote_cmd = format!("ssh {}@{} \"{}\"", user, host, command);
@@ -249,8 +249,11 @@ pub fn replay_share(session_id: &str) -> Result<()> {
     }
 
     let conn = open_db()?;
-    let access_token = format!("token_{}", uuid::Uuid::new_v4());
     let timestamp = chrono::Utc::now().to_rfc3339();
+    let now = std::time::SystemTime::now()
+        .duration_since(std::time::UNIX_EPOCH)
+        .unwrap_or_default();
+    let access_token = format!("token_{}", now.as_secs());
     let expires = chrono::Utc::now() + chrono::Duration::days(7);
     let expires_str = expires.to_rfc3339();
 
