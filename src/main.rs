@@ -7,7 +7,7 @@ use colored::*;
 #[derive(Parser)]
 #[command(name = "veil")]
 #[command(about = "A thin, intelligent layer over your terminal")]
-#[command(version = "0.1.1")]
+#[command(version = "0.1.2")]
 struct Cli {
     #[command(subcommand)]
     command: Commands,
@@ -44,6 +44,23 @@ enum Commands {
         /// Name of the bookmark
         name: String,
     },
+    /// Audit dependencies and environment
+    Audit,
+    /// Manage session recording and replay
+    Session {
+        #[command(subcommand)]
+        action: SessionCommands,
+    },
+    /// Track and compare environment variables
+    Env {
+        #[command(subcommand)]
+        action: EnvCommands,
+    },
+    /// Manage and suggest aliases
+    Alias {
+        #[command(subcommand)]
+        action: AliasCommands,
+    },
     #[command(hide = true)]
     Record {
         command: String,
@@ -71,6 +88,37 @@ enum BookmarkCommands {
     },
     /// List all bookmarks
     List,
+}
+
+#[derive(Subcommand)]
+enum SessionCommands {
+    /// Replay recent commands from this session
+    Replay {
+        #[arg(default_value = "20")]
+        limit: usize,
+    },
+}
+
+#[derive(Subcommand)]
+enum EnvCommands {
+    /// Capture current environment as baseline
+    Capture,
+    /// Compare environment to baseline and report changes
+    Diff,
+}
+
+#[derive(Subcommand)]
+enum AliasCommands {
+    /// Create a new alias
+    Add {
+        name: String,
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// List all aliases
+    List,
+    /// Suggest aliases based on command history
+    Suggest,
 }
 
 fn main() -> Result<()> {
@@ -122,6 +170,41 @@ fn main() -> Result<()> {
             let path = engines::bookmarks::get(&name)?;
             // Print the path so the PowerShell hook can cd to it
             println!("VEIL_CD:{}", path);
+        }
+        Commands::Audit => {
+            println!("{} {}", "veil".purple().bold(), "audit".white());
+            engines::auditor::audit()?;
+        }
+        Commands::Session { action } => {
+            match action {
+                SessionCommands::Replay { limit } => {
+                    engines::recorder::replay(limit)?;
+                }
+            }
+        }
+        Commands::Env { action } => {
+            match action {
+                EnvCommands::Capture => {
+                    engines::envoy::capture()?;
+                }
+                EnvCommands::Diff => {
+                    engines::envoy::diff()?;
+                }
+            }
+        }
+        Commands::Alias { action } => {
+            match action {
+                AliasCommands::Add { name, command } => {
+                    let cmd_str = command.join(" ");
+                    engines::sage::add_alias(&name, &cmd_str)?;
+                }
+                AliasCommands::List => {
+                    engines::sage::list_aliases()?;
+                }
+                AliasCommands::Suggest => {
+                    engines::sage::suggest()?;
+                }
+            }
         }
         Commands::Record { command, exit_code, directory } => {
             engines::memoir::record(&command, exit_code, &directory)?;

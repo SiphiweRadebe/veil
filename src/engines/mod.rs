@@ -4,3 +4,7 @@ pub mod phantom;
 pub mod context;
 pub mod trace;
 pub mod bookmarks;
+pub mod auditor;
+pub mod recorder;
+pub mod envoy;
+pub mod sage;
