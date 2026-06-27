@@ -96,6 +96,31 @@ enum Commands {
         /// File to analyze
         file: String,
     },
+    /// Export configuration for shell
+    Export {
+        /// Shell type: bash, zsh, powershell
+        shell: String,
+    },
+    /// Import aliases from shell
+    Import {
+        /// Shell type: bash, zsh, powershell
+        shell: String,
+    },
+    /// Bi-directional shell sync
+    SyncShell {
+        /// Shell type: bash, zsh, powershell
+        shell: String,
+    },
+    /// Setup file watching and automation
+    Watch {
+        #[command(subcommand)]
+        action: WatchCommands,
+    },
+    /// Schedule commands to run on cron
+    Schedule {
+        #[command(subcommand)]
+        action: ScheduleCommands,
+    },
     /// Audit dependencies and environment
     Audit,
     /// Manage session recording and replay
@@ -179,6 +204,50 @@ enum WorkflowCommands {
     List,
     /// Save current command sequence as workflow
     Save {
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum WatchCommands {
+    /// Setup file watcher
+    Add {
+        name: String,
+        pattern: String,
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// List active watchers
+    List,
+    /// Run a watcher
+    Run {
+        name: String,
+        #[arg(default_value = "30")]
+        interval: u64,
+    },
+    /// Remove watcher
+    Remove {
+        name: String,
+    },
+}
+
+#[derive(Subcommand)]
+enum ScheduleCommands {
+    /// Schedule a recurring command
+    Add {
+        name: String,
+        cron: String,
+        #[arg(trailing_var_arg = true)]
+        command: Vec<String>,
+    },
+    /// List scheduled tasks
+    List,
+    /// Run a scheduled task
+    Run {
+        name: String,
+    },
+    /// Remove scheduled task
+    Remove {
         name: String,
     },
 }
@@ -315,6 +384,51 @@ fn main() -> Result<()> {
         }
         Commands::Impact { file } => {
             engines::analyzer::impact(&file)?;
+        }
+        Commands::Export { shell } => {
+            println!("{} {} for {}", "veil".purple().bold(), "export".white(), shell.cyan());
+            engines::sync::export(&shell)?;
+        }
+        Commands::Import { shell } => {
+            println!("{} {} from {}", "veil".purple().bold(), "import".white(), shell.cyan());
+            engines::sync::import(&shell)?;
+        }
+        Commands::SyncShell { shell } => {
+            engines::sync::sync_shell(&shell)?;
+        }
+        Commands::Watch { action } => {
+            match action {
+                WatchCommands::Add { name, pattern, command } => {
+                    let cmd_str = command.join(" ");
+                    engines::monitor::watch(&name, &pattern, &cmd_str)?;
+                }
+                WatchCommands::List => {
+                    engines::monitor::watch_list()?;
+                }
+                WatchCommands::Run { name, interval } => {
+                    engines::monitor::watch_run(&name, interval)?;
+                }
+                WatchCommands::Remove { name } => {
+                    engines::monitor::watch_remove(&name)?;
+                }
+            }
+        }
+        Commands::Schedule { action } => {
+            match action {
+                ScheduleCommands::Add { name, cron, command } => {
+                    let cmd_str = command.join(" ");
+                    engines::schedule::schedule(&name, &cron, &cmd_str)?;
+                }
+                ScheduleCommands::List => {
+                    engines::schedule::schedule_list()?;
+                }
+                ScheduleCommands::Run { name } => {
+                    engines::schedule::schedule_run(&name)?;
+                }
+                ScheduleCommands::Remove { name } => {
+                    engines::schedule::schedule_remove(&name)?;
+                }
+            }
         }
         Commands::Record { command, exit_code, directory } => {
             engines::memoir::record(&command, exit_code, &directory)?;
